@@ -3,6 +3,7 @@ module AbstractInterpretation.ExtendedSyntax.CreatedBy.CodeGen where
 
 import Control.Monad.Writer
 import Control.Monad.State
+import Control.Monad (forM, forM_, zipWithM, zipWithM_, when)
 
 import Data.Set (Set)
 import Data.Map (Map)

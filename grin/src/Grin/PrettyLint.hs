@@ -8,10 +8,10 @@ import qualified Data.Map as Map
 import Control.Comonad.Cofree
 import Data.Functor.Foldable as Foldable
 
-import Text.PrettyPrint.ANSI.Leijen
+import Text.PrettyPrint.ANSI.Leijen hiding (Pretty, pretty)
 
 import Grin.Grin
-import Grin.Pretty
+import Grin.Pretty (Pretty(..))
 import Grin.Lint
 
 keyword :: String -> Doc

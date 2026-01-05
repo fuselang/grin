@@ -27,7 +27,7 @@ import Data.Text (Text)
 import Data.Maybe (maybe, fromJust, fromMaybe)
 import Text.Printf
 import Text.Pretty.Simple (pPrint)
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (</>), (<$$>))
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (</>), (<$$>), Pretty, pretty)
 import qualified Text.Show.Pretty as PP
 
 import Pipeline.Eval
@@ -38,7 +38,7 @@ import Grin.EffectMap hiding (Eff)
 import Pipeline.Optimizations
 import qualified Grin.Statistics as Statistics
 import Grin.Parse
-import Grin.Pretty(showWide, prettyProgram, RenderingOption(..))
+import Grin.Pretty(showWide, prettyProgram, RenderingOption(..), Pretty(..))
 import Transformations.CountVariableUse
 import Transformations.GenerateEval
 import qualified Transformations.Simplifying.Vectorisation2 as Vectorisation2
@@ -96,7 +96,7 @@ import Data.Bifunctor
 import qualified Data.Bimap as Bimap
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import LLVM.Pretty (ppllvm)
+-- LLVM.Pretty (ppllvm) removed - not available for LLVM 15
 import qualified Data.Text.Lazy.IO as Text
 
 import Control.Monad.State.Class as MonadState (get, put, gets)
@@ -677,7 +677,7 @@ pureEval evalPlugin showStatistics = do
   (val, stat) <- liftIO $ do
     hSetBuffering stdout NoBuffering
     evalProgram (PureReducer evalPlugin) e
-  when showStatistics $ pipelineLog $ show $ pretty stat
+  when showStatistics $ pipelineLog $ maybe "No statistics" (show . pretty) stat
   pipelineLog $ show $ pretty val
 
 definionalInterpreterEval :: EvalPlugin -> Bool -> PipelineM ()
@@ -686,7 +686,7 @@ definionalInterpreterEval evalPlugin showStatistics = do
   (val, stat) <- liftIO $ do
     hSetBuffering stdout NoBuffering
     evalProgram (DefinitionalReducer evalPlugin) e
-  when showStatistics $ pipelineLog $ show $ pretty stat
+  when showStatistics $ pipelineLog $ maybe "No statistics" (show . pretty) stat
   pipelineLog $ show $ pretty val
 
 printGrinM :: RenderingOption -> (Doc -> Doc) -> PipelineM ()
@@ -752,16 +752,16 @@ saveLLVM path = do
   pipelineLog "* to LLVM *"
   void $ liftIO $ CGLLVM.toLLVM llName code
   pipelineLog"* LLVM X64 codegen *"
-  llcExe <- liftIO $ fromMaybe "llc-7" <$> lookupEnv "GRIN_LLC"
-  optExe <- liftIO $ fromMaybe "opt-7" <$> lookupEnv "GRIN_OPT"
+  llcExe <- liftIO $ fromMaybe "llc-15" <$> lookupEnv "GRIN_LLC"
+  optExe <- liftIO $ fromMaybe "opt-15" <$> lookupEnv "GRIN_OPT"
   callCommand $ printf "%s -O3 %s | %s -o %s" optExe llName llcExe (sName :: String)
 
 saveExecutable :: Bool -> Path -> PipelineM ()
 saveExecutable debugSymbols path = do
   pipelineLog "* generate llvm x64 optcode *"
   let grinOptCodePath = Rel "grin-opt-code"
-  clangExe <- liftIO $ fromMaybe "clang-7" <$> lookupEnv "GRIN_CC"
-  llcExe <- liftIO $ fromMaybe "llc-7" <$> lookupEnv "GRIN_LLC"
+  clangExe <- liftIO $ fromMaybe "clang-15" <$> lookupEnv "GRIN_CC"
+  llcExe <- liftIO $ fromMaybe "llc-15" <$> lookupEnv "GRIN_LLC"
   pipelineStep $ SaveLLVM grinOptCodePath
   grinOptCodeFile <- relPath grinOptCodePath
   fname <- relPath path
@@ -802,7 +802,9 @@ lintGrin mPhaseName = do
       Nothing         -> pipelineLog $ printf "error:\n%s" (unlines errors)
     saveTransformationInfo "Lint" $ prettyLintExp lintExp
     mHptResult <- use psHPTResult
-    saveTransformationInfo "HPT-Result" mHptResult
+    case mHptResult of
+      Just hptResult -> saveTransformationInfo "HPT-Result" hptResult
+      Nothing -> pure ()
     failOnLintError <- view poFailOnLint
     when failOnLintError $ do
       -- FIXME: reenable after: undefined support ; transformation to inject default alts for pattern match errors

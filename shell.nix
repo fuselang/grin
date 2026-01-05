@@ -1,15 +1,30 @@
 let
   sources = import ./nix/sources.nix {};
   nixpkgs = import sources.nixpkgs {};
-  pkgs = import ./default.nix;
 in
-  pkgs.shellFor {
-    buildInputs = with nixpkgs.haskellPackages; [
-      hlint
-      ghcid
+  nixpkgs.mkShell {
+    buildInputs = with nixpkgs; [
+      # Haskell tooling
+      haskell.compiler.ghc96
+      cabal-install
+      haskellPackages.hlint
+      haskellPackages.ghcid
+      haskellPackages.hspec-discover
+
+      # LLVM 15 toolchain
+      clang_15
+      llvm_15
+
+      # Build dependencies
+      pkg-config
+      zlib
+      ncurses
+      libxml2
     ];
 
-    GRIN_CC = "${nixpkgs.clang_7}/bin/clang";
-    GRIN_OPT = "${nixpkgs.llvm_7}/bin/opt";
-    GRIN_LLC = "${nixpkgs.llvm_7}/bin/llc";
+    shellHook = ''
+      export GRIN_CC="${nixpkgs.clang_15}/bin/clang"
+      export GRIN_OPT="${nixpkgs.llvm_15}/bin/opt"
+      export GRIN_LLC="${nixpkgs.llvm_15}/bin/llc"
+    '';
   }

@@ -12,6 +12,7 @@ import Control.Monad.State (MonadState(..))
 import Control.Monad.Trans (MonadIO, lift)
 import Control.Monad.Trans.State hiding (state, get)
 import Data.Functor.Foldable
+import Data.Fix (Fix(..))
 import Data.Functor.Sum
 import Data.Maybe (fromJust)
 import Grin.ExtendedSyntax.Syntax (Name(..), Tag(..))

@@ -4,6 +4,7 @@ module AbstractInterpretation.ExtendedSyntax.LiveVariable.CodeGen
   , live, sideEffecting
   ) where
 
+import Control.Monad (forM, forM_, zipWithM_, (>=>))
 import Control.Monad.State
 
 import Data.Int

@@ -57,7 +57,15 @@ If you'd like to join them, please consider become a backer or sponsor on [Patre
 Example using Homebrew on macOS:
 
 ```bash
-$ brew install llvm-hs/llvm/llvm-7
+$ brew install llvm@15
+```
+
+You may need to set environment variables to point to the LLVM 15 tools:
+
+```bash
+export GRIN_CC=$(brew --prefix llvm@15)/bin/clang
+export GRIN_OPT=$(brew --prefix llvm@15)/bin/opt
+export GRIN_LLC=$(brew --prefix llvm@15)/bin/llc
 ```
 
 #### Debian/Ubuntu
@@ -68,7 +76,15 @@ instructions for adding the correct package database for your OS version, and
 then:
 
 ```bash
-$ apt-get install llvm-7-dev
+$ apt-get install llvm-15-dev clang-15
+```
+
+You may need to set environment variables if the tools are not on your PATH:
+
+```bash
+export GRIN_CC=clang-15
+export GRIN_OPT=opt-15
+export GRIN_LLC=llc-15
 ```
 
 #### Nix

@@ -3,7 +3,7 @@
 #include "prim_ops.h"
 
 // Compile with
-// clang-7 prim_ops.c test_prim_ops.c -o test_prim_ops
+// clang-15 prim_ops.c test_prim_ops.c -o test_prim_ops
 // This is a simple test file, the expected results are printed after the computed value.
 
 int main() {

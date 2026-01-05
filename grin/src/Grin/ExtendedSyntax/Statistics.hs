@@ -5,8 +5,9 @@ module Grin.ExtendedSyntax.Statistics where
 import Data.Monoid
 import Data.Functor.Foldable
 import qualified Data.Foldable
-import Text.PrettyPrint.ANSI.Leijen
+import Text.PrettyPrint.ANSI.Leijen hiding (Pretty, pretty)
 import Grin.ExtendedSyntax.Grin
+import Grin.ExtendedSyntax.Pretty (Pretty(..))
 import qualified Data.Set as Set
 
 

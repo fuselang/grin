@@ -6,6 +6,7 @@ import Data.Functor.Foldable
 import Data.Monoid hiding (Alt)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import Control.Monad (foldM)
 import Control.Monad.State
 import Lens.Micro.Platform ((%=), _1)
 

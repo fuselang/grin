@@ -11,6 +11,7 @@ import Data.Maybe
 import Data.Functor.Foldable as Foldable
 
 import Control.Monad.State
+import Control.Monad (forM)
 
 import Grin.ExtendedSyntax.Grin
 

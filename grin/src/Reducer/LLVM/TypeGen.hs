@@ -15,6 +15,7 @@ import qualified Data.Vector as V
 import qualified Data.List as List
 import qualified Data.Foldable
 
+import Control.Monad (foldM)
 import Control.Monad.State
 import Lens.Micro.Platform
 
@@ -29,10 +30,10 @@ import Grin.TypeEnv
 import Grin.Pretty
 
 stringStructType :: LLVM.Type
-stringStructType = LLVM.StructureType False [ptr i8, i64]
+stringStructType = LLVM.StructureType False [ptr, i64]  -- LLVM 15 opaque pointers
 
 stringType :: LLVM.Type
-stringType = ptr stringStructType
+stringType = ptr  -- LLVM 15 opaque pointers
 
 typeGenSimpleType :: SimpleType -> LLVM.Type
 typeGenSimpleType = \case

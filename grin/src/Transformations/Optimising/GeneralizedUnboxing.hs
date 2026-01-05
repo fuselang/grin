@@ -7,7 +7,7 @@ import qualified Data.Map.Strict as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe
-import Data.List
+import Data.List hiding (singleton)
 import Data.Function
 import Data.Functor.Foldable as Foldable
 import Data.Functor.Infix

@@ -12,6 +12,7 @@ import Data.Function (fix)
 import Data.Map.Strict (Map, fromList)
 import Grin.ExtendedSyntax.Syntax hiding (Val)
 import Data.Functor.Foldable
+import Data.Fix (Fix(..))
 import Reducer.Interpreter.Env (Env)
 import Data.Functor.Sum
 

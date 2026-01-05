@@ -6,9 +6,9 @@ import qualified Data.Bimap as Bimap
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), Pretty, pretty)
 
-import Grin.Pretty ()
+import Grin.Pretty (Pretty(..))
 import Grin.Grin (Name, unpackName)
 import qualified Grin.Grin as Grin
 import AbstractInterpretation.IR

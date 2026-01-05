@@ -5,7 +5,7 @@ import Data.IntMap.Strict (IntMap)
 import Data.Map (Map)
 import Grin.Grin
 import Grin.Pretty
-import Text.PrettyPrint.ANSI.Leijen
+import Text.PrettyPrint.ANSI.Leijen hiding (Pretty, pretty)
 
 import qualified Data.Map as Map
 import qualified Data.IntMap.Strict as IntMap

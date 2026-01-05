@@ -12,6 +12,7 @@ import Text.Printf
 import Data.Functor.Foldable as Foldable
 import qualified Data.Foldable
 import Control.Comonad.Cofree
+import Control.Monad (when, forM_, unless, void, join, foldM)
 import Control.Monad.State
 import Control.Monad.Writer hiding (Alt)
 import qualified Control.Comonad.Trans.Cofree as CCTC
@@ -22,7 +23,7 @@ import qualified Data.Set as Set
 import Data.List (findIndices)
 import Lens.Micro.Platform
 import Lens.Micro.Extra
-import Text.PrettyPrint.ANSI.Leijen (Pretty, plain)
+import Text.PrettyPrint.ANSI.Leijen hiding (Pretty, pretty, (<$>), (<$$>))
 import Data.String
 import Control.Comonad (extract)
 import qualified Data.Vector as Vector

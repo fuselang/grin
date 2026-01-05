@@ -7,6 +7,7 @@ import Reducer.Interpreter.Base
 import Reducer.Interpreter.Definitional.Cib
 import Reducer.Interpreter.Definitional.Internal
 import Data.Functor.Foldable
+import Data.Fix (Fix(..))
 import Data.Functor.Sum
 import Grin.ExtendedSyntax.Syntax
 

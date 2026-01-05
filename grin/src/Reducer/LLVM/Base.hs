@@ -37,7 +37,7 @@ tagLLVMType :: LLVM.Type
 tagLLVMType = i64
 
 locationLLVMType :: LLVM.Type
-locationLLVMType = ptr tagLLVMType
+locationLLVMType = ptr  -- LLVM 15 uses opaque pointers
 
 mkNameG :: Grin.Name -> AST.Name
 mkNameG = mkName . Grin.unpackName

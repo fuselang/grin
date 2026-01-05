@@ -20,15 +20,16 @@ import Data.Functor.Foldable
 import Grin.Syntax
 import Lens.Micro.Platform
 import Control.Monad.State
+import Control.Monad (forM, forM_, liftM2)
 import qualified Data.Map.Strict as Map
 import Control.Comonad.Cofree
 import qualified Control.Comonad.Trans.Cofree as CCTC
 import qualified Data.Text as Text
 import Grin.TH (prog)
 import Grin.PrettyLint (prettyAnnExp)
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), Pretty, pretty)
 import qualified Text.PrettyPrint.ANSI.Leijen as Pretty ((<$>))
-import Grin.Pretty (showWide)
+import Grin.Pretty (showWide, Pretty(..))
 import Control.Arrow ((&&&))
 import Data.Maybe (fromJust)
 import Data.Functor.Infix ((<$$$>))

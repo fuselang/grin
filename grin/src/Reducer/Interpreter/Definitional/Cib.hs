@@ -11,7 +11,7 @@ import Control.Monad.State (gets, modify)
 import Reducer.Interpreter.Base
 import Reducer.Interpreter.Definitional.Internal
 import Reducer.Interpreter.Definitional.Instance
-import Data.Functor.Foldable (Fix)
+import Data.Fix (Fix)
 import Data.Functor.Sum
 
 import qualified Grin.ExtendedSyntax.Syntax as Syntax

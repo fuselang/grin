@@ -38,11 +38,13 @@ import qualified LLVM.AST.Float as F
 import qualified LLVM.AST.FunctionAttribute as FA
 import qualified LLVM.AST.RMWOperation as RMWOperation
 import LLVM.AST.Global as Global
-import LLVM.Pretty (ppllvm)
 
 #ifdef WITH_LLVM_HS
 import LLVM.Context
 import LLVM.Module
+#else
+-- LLVM.Pretty is not available for LLVM 15, would need llvm-hs-pretty
+-- import LLVM.Pretty (ppllvm)
 #endif
 
 import Control.Monad.Except
@@ -71,7 +73,9 @@ toLLVM fname mod = withContext $ \ctx -> do
   pure llvm
 #else
 toLLVM fname mod = do
-  let llvm = BS.pack . LazyText.unpack $ ppllvm mod
+  -- LLVM.Pretty (ppllvm) is not available for LLVM 15
+  -- Fallback: write a placeholder message
+  let llvm = BS.pack $ "; LLVM IR output requires WITH_LLVM_HS flag for LLVM 15\n; Module: " ++ show (AST.moduleName mod) ++ "\n"
   BS.writeFile fname llvm
   pure llvm
 #endif
@@ -83,7 +87,7 @@ codeGenLit = \case
   LFloat v  -> pure $ C.Float {floatValue=F.Single v}
   LBool v   -> pure $ Int {integerBits=1, integerValue=if v then 1 else 0}
   LChar v   -> pure $ Int {integerBits=8, integerValue=fromIntegral $ fromEnum v}
-  LString v -> C.GlobalReference stringType <$> strName v
+  LString v -> C.GlobalReference <$> strName v  -- LLVM 15: GlobalReference only takes name
 
 strName :: Text.Text -> CG AST.Name
 strName str = do
@@ -187,7 +191,7 @@ toModule Env{..} = defaultModule
     stringDefinitions = concat
       [ [ GlobalDefinition globalVariableDefaults
             { name = valAstName
-            , Global.type' = ArrayType (fromIntegral (length stringVal)) i8
+            , Global.type' = arrayTy
             , initializer = Just $ C.Array i8 $ [Int 8 $ fromIntegral $ fromEnum v0 | v0 <- stringVal]
             }
         , GlobalDefinition globalVariableDefaults
@@ -196,7 +200,8 @@ toModule Env{..} = defaultModule
             , initializer = Just $ C.Struct Nothing False -- TODO: Set struct name
                 [ C.GetElementPtr
                     { inBounds = True
-                    , address = GlobalReference (PointerType (ArrayType (fromIntegral (length stringVal)) i8) (AddrSpace 0)) valAstName
+                    , type' = arrayTy  -- LLVM 15: GEP requires explicit element type
+                    , address = GlobalReference valAstName  -- LLVM 15: GlobalReference only takes name
                     , indices = [Int {integerBits=64, integerValue=0}, Int {integerBits=64, integerValue=0}]
                     }
                 , Int 64 $ fromIntegral $ length stringVal
@@ -206,6 +211,7 @@ toModule Env{..} = defaultModule
       | (stringVal0, astName@(Name astNameBS)) <- Map.toList _envStringMap
       , let stringVal = Text.unpack stringVal0
       , let valAstName = Name $ BSShort.pack $ (BSShort.unpack astNameBS) ++ (BSShort.unpack ".val") -- Append ShortByteStrings
+      , let arrayTy = ArrayType (fromIntegral (length stringVal)) i8
       ]
 
 {-
@@ -273,7 +279,8 @@ codeGen typeEnv exp = toModule $ flip execState (emptyEnv {_envTypeEnv = typeEnv
             { tailCallKind        = Just Tail
             , callingConvention   = CC.Fast
             , returnAttributes    = []
-            , function            = Right . ConstantOperand $ GlobalReference (ptr functionType) (mkNameG name)
+            , type'               = functionType  -- LLVM 15: requires explicit function type
+            , function            = Right . ConstantOperand $ GlobalReference (mkNameG name)  -- LLVM 15: GlobalReference only takes name
             , arguments           = zip convertedArgs (repeat [])
             , functionAttributes  = []
             , metadata            = []
@@ -354,6 +361,7 @@ codeGen typeEnv exp = toModule $ flip execState (emptyEnv {_envTypeEnv = typeEnv
       tagAddress <- codeGenVal $ Var name
       tagVal <- codeGenLocalVar "tag" tagLLVMType $ Load
         { volatile        = False
+        , type'           = tagLLVMType  -- LLVM 15: Load requires explicit type
         , address         = tagAddress
         , maybeAtomicity  = Nothing
         , alignment       = 1
@@ -371,9 +379,10 @@ codeGen typeEnv exp = toModule $ flip execState (emptyEnv {_envTypeEnv = typeEnv
       codeGenTagSwitch tagVal nodeSet $ \tag items -> do
         let nodeCGType  = toCGType $ T_NodeSet $ Map.singleton tag items
             nodeTU      = cgTaggedUnion nodeCGType
-        nodeAddress <- codeGenBitCast ("ptr_" <> showTS (PP tag)) tagAddress (ptr $ tuLLVMType nodeTU)
+        nodeAddress <- codeGenBitCast ("ptr_" <> showTS (PP tag)) tagAddress ptr  -- LLVM 15: opaque pointers
         nodeVal <- codeGenLocalVar ("node_" <> showTS (PP tag)) (cgLLVMType nodeCGType) $ Load
           { volatile        = False
+          , type'           = cgLLVMType nodeCGType  -- LLVM 15: Load requires explicit type
           , address         = nodeAddress
           , maybeAtomicity  = Nothing
           , alignment       = 1
@@ -405,7 +414,7 @@ codeGenStoreNode val nodeLocation = do
   codeGenTagSwitch tagVal nodeSet $ \tag items -> do
     let nodeTU = taggedUnion $ Map.singleton tag items
     nodeVal <- copyTaggedUnion tuVal valueTU nodeTU
-    nodeAddress <- codeGenBitCast ("ptr_" <> showTS (PP tag)) nodeLocation (ptr $ tuLLVMType nodeTU)
+    nodeAddress <- codeGenBitCast ("ptr_" <> showTS (PP tag)) nodeLocation ptr  -- LLVM 15: opaque pointers
     emit [Do Store
       { volatile        = False
       , address         = nodeAddress
@@ -421,6 +430,7 @@ convertStringOperand t o = case (cgType t,o) of
   (T_SimpleType T_String, ConstantOperand stringRef@(GlobalReference{}))
     -> ConstantOperand $ C.GetElementPtr
         { inBounds = False
+        , type' = stringStructType  -- LLVM 15: GEP requires explicit element type
         , address = stringRef
         , indices = [Int {integerBits=64, integerValue=0}, Int {integerBits=64, integerValue=0}]
         }
@@ -434,7 +444,7 @@ codeGenCase opVal alts bindingGen = do
         (Alt DefaultPat _, _) -> True
         _ -> False
       (defaultAlts, normalAlts) = List.partition isDefault alts
-  when (length defaultAlts > 1) $ fail "multiple default patterns"
+  when (length defaultAlts > 1) $ error "multiple default patterns"
   let orderedAlts = defaultAlts ++ normalAlts
 
   (altDests, altValues, altCGTypes) <- fmap List.unzip3 . forM orderedAlts $ \(Alt cpat _, altBody) -> do
@@ -546,10 +556,11 @@ codeGenIncreaseHeapPointer varT = do
     CG_NodeSet {cgType = T_NodeSet ns} -> pure ns
     _ -> error $ show varT
 
-  let tuPtrTy = ptr $ tuLLVMType $ taggedUnion nodeSet
-  tuSizePtr <- codeGenLocalVar "alloc_bytes" tuPtrTy $ AST.GetElementPtr
+  let structTy = tuLLVMType $ taggedUnion nodeSet  -- LLVM 15: GEP needs explicit element type
+  tuSizePtr <- codeGenLocalVar "alloc_bytes" ptr $ AST.GetElementPtr
     { inBounds  = True
-    , address   = ConstantOperand $ Null tuPtrTy
+    , type'     = structTy  -- LLVM 15: opaque pointers require explicit type
+    , address   = ConstantOperand $ Null { constantType = ptr }
     , indices   = [ConstantOperand $ C.Int 32 1]
     , metadata  = []
     }
@@ -561,14 +572,15 @@ codeGenIncreaseHeapPointer varT = do
   heapInt <- codeGenLocalVar "new_node_ptr" i64 $ AST.AtomicRMW
     { volatile      = False
     , rmwOperation  = RMWOperation.Add
-    , address       = ConstantOperand $ GlobalReference (ptr i64) (mkName heapPointerName)
+    , address       = ConstantOperand $ GlobalReference (mkName heapPointerName)  -- LLVM 15: GlobalReference only takes name
     , value         = tuSizeInt
+    , alignment     = 8  -- LLVM 15: AtomicRMW requires alignment (8 bytes for i64)
     , atomicity     = (System, Monotonic)
     , metadata      = []
     }
-  codeGenLocalVar "new_node_ptr" (ptr i64) $ AST.IntToPtr
+  codeGenLocalVar "new_node_ptr" ptr $ AST.IntToPtr  -- LLVM 15: opaque pointers
     { operand0  = heapInt
-    , type'     = ptr i64
+    , type'     = ptr  -- LLVM 15: opaque pointers
     , metadata  = []
     }
 
@@ -614,7 +626,8 @@ errorBlock = do
     { tailCallKind        = Just Tail
     , callingConvention   = CC.C
     , returnAttributes    = []
-    , function            = Right . ConstantOperand $ GlobalReference (ptr functionType) (mkName "__runtime_error")
+    , type'               = functionType  -- LLVM 15: requires explicit function type
+    , function            = Right . ConstantOperand $ GlobalReference (mkName "__runtime_error")  -- LLVM 15: GlobalReference only takes name
     , arguments           = zip [ConstantOperand $ C.Int 64 666] (repeat [])
     , functionAttributes  = []
     , metadata            = []

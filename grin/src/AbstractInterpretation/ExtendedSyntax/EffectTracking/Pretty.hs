@@ -2,7 +2,7 @@
 module AbstractInterpretation.ExtendedSyntax.EffectTracking.Pretty where
 
 import Data.Functor.Foldable as Foldable
-import Text.PrettyPrint.ANSI.Leijen
+import Text.PrettyPrint.ANSI.Leijen hiding (Pretty, pretty)
 
 import Data.Set (Set)
 import qualified Data.Set as Set

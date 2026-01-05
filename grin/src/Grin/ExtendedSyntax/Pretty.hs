@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase, RecordWildCards, OverloadedStrings #-}
+{-# LANGUAGE LambdaCase, RecordWildCards, OverloadedStrings, TypeSynonymInstances, FlexibleInstances #-}
 module Grin.ExtendedSyntax.Pretty
   ( pretty
   , printGrin
@@ -11,7 +11,8 @@ module Grin.ExtendedSyntax.Pretty
   , prettyBracedList
   , prettySimplePair
   , prettyFunction
-  , Pretty
+  , Pretty(..)
+  , Doc
   , showName
   , showWidth
   , showWide
@@ -34,13 +35,17 @@ import qualified Data.Vector as V
 import Data.Text (unpack)
 
 import Data.Functor.Foldable as Foldable
-import Text.PrettyPrint.ANSI.Leijen
+import Text.PrettyPrint.ANSI.Leijen hiding (Pretty, pretty)
 
 import Grin.ExtendedSyntax.Grin
 import Grin.ExtendedSyntax.TypeEnvDefs
 import Grin.ExtendedSyntax.EffectMap
 
 import Grin.ExtendedSyntax.Parse
+
+-- Re-export Pretty class and basic instances from Grin.Pretty
+-- to avoid duplication of the class definition.
+import Grin.Pretty (Pretty(..))
 
 showWidth :: Int -> Doc -> String
 showWidth w x = displayS (renderPretty 0.4 w x) ""
@@ -163,9 +168,7 @@ instance Pretty Tag where
   pretty (Tag tagtype name) = pretty tagtype <> pretty name
 
 -- generic ; used by HPTResult and TypeEnv
-
-instance Pretty a => Pretty (Set a) where
-  pretty s = encloseSep lbrace rbrace comma (map pretty $ Set.toList s)
+-- NOTE: Pretty (Set a) instance is imported from Grin.Pretty
 
 prettyKeyValue :: (Pretty k, Pretty v) => [(k,v)] -> Doc
 prettyKeyValue kvList = vsep [fill 6 (pretty k) <+> text "->" <+> pretty v | (k,v) <- kvList]

@@ -13,23 +13,20 @@ build-type:          Simple
 --extra-source-files:  README.md
 cabal-version:       >=1.10
 
-flag with-llvm-hs
-  description: Build with llvm-hs
+flag with_llvm_hs
+  description: Enable full LLVM IR generation and JIT support via llvm-hs
   default: True
+  manual: True
 
 library
   hs-source-dirs:      src
-  default-extensions:  OverloadedStrings
+  default-extensions:  OverloadedStrings, CPP
 
-  if flag(with-llvm-hs)
-    exposed-modules:
-      Reducer.LLVM.JIT
-    build-depends:
-      llvm-hs ==7.*
-    cpp-options:
-      "-DWITH_LLVM_HS"
+  if flag(with_llvm_hs)
+    cpp-options: -DWITH_LLVM_HS
 
   exposed-modules:
+    Reducer.LLVM.JIT
     AbstractInterpretation.ExtendedSyntax.IR
     AbstractInterpretation.ExtendedSyntax.PrettyIR
     AbstractInterpretation.ExtendedSyntax.BinaryIR
@@ -224,13 +221,13 @@ library
     pretty-show,
     vector,
     deepseq,
+    data-fix,
     recursion-schemes,
     ansi-wl-pprint,
-    monad-gen,
     free,
     bytestring,
-    llvm-hs-pure ==7.*,
-    llvm-hs-pretty >=0.6.1,
+    llvm-hs-pure >=15 && <16,
+    llvm-hs >=15 && <16,
     inline-c,
     filepath,
     transformers,
@@ -251,7 +248,6 @@ library
     extra,
     logict,
     QuickCheck,
-    quickcheck-instances,
     neat-interpolation,
     template-haskell,
     Diff,
@@ -276,7 +272,6 @@ executable grin
                      , containers
                      , process
                      , pretty-show
-                     , llvm-hs-pretty
                      , text
                      , filepath
                      , transformers
@@ -325,6 +320,8 @@ test-suite grin-test
                      , bytestring
                      , MissingH
                      , recursion-schemes
+                     , data-fix
+                     , llvm-hs-pure
 
   other-modules:
                      Transformations.Simplifying.RegisterIntroductionSpec
@@ -397,6 +394,7 @@ test-suite grin-test
                      Transformations.ExtendedSyntax.Optimising.EvaluatedCaseEliminationSpec
                      Transformations.ExtendedSyntax.Optimising.TrivialCaseEliminationSpec
                      Transformations.ExtendedSyntax.StaticSingleAssignmentSpec
+  build-tool-depends: hspec-discover:hspec-discover
   default-language:    Haskell2010
 
 test-suite grin-end-to-end-test

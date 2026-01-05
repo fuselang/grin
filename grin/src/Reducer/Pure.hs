@@ -5,7 +5,7 @@ module Reducer.Pure
   ) where
 
 import Text.Printf
-import Text.PrettyPrint.ANSI.Leijen
+import Text.PrettyPrint.ANSI.Leijen hiding (Pretty, pretty)
 
 import Data.Foldable
 import Data.Map.Strict (Map)
@@ -15,6 +15,7 @@ import Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as IntMap
 import Data.List
 import qualified Data.Text as Text
+import Control.Monad (when, void, zipWithM)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Except
@@ -66,7 +67,7 @@ toFFIArg :: Ty -> RTVal -> GrinM Arg
 toFFIArg (TySimple T_Int64) (RT_Lit (LInt64 x)) = pure $ argInt64 x
 toFFIArg (TySimple T_Word64) (RT_Lit (LWord64 x)) = pure $ argWord64 x
 toFFIArg (TySimple T_Float) (RT_Lit (LFloat x)) = pure $ argCFloat $ CFloat x
-toFFIArg (TySimple T_Bool) (RT_Lit (LBool x)) = pure $ argInt $ if x then 1 else 0
+toFFIArg (TySimple T_Bool) (RT_Lit (LBool x)) = pure $ argCInt $ if x then 1 else 0
 toFFIArg (TySimple T_String) (RT_Lit (LString x)) = pure $ argString $ Text.unpack x
 toFFIArg (TySimple T_Char) (RT_Lit (LChar x)) = pure $ argCChar $ castCharToCChar x
 toFFIArg ty arg = throwError $ userError

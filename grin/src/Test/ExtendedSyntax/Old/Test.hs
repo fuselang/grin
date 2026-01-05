@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric, LambdaCase, TypeApplications, StandaloneDeriving, RankNTypes #-}
 {-# LANGUAGE QuasiQuotes, ViewPatterns, OverloadedStrings, GeneralizedNewtypeDeriving #-}
+{-# OPTIONS_GHC -Wno-orphans #-}  -- Arbitrary (Vector a) instance
 module Test.ExtendedSyntax.Old.Test where
 
 import Prelude hiding (GT)
@@ -29,7 +30,6 @@ import qualified Grin.Grin as Grin
 import qualified Grin.TypeEnvDefs as Grin
 import qualified Grin.PrimOpsPrelude as PrimOps'
 import Test.QuickCheck
-import Test.QuickCheck.Instances.Vector
 import Generic.Random
 import Lens.Micro
 import Lens.Micro.Mtl
@@ -37,12 +37,12 @@ import qualified Test.ExtendedSyntax.Old.Grammar as G
 
 import Data.Set (Set); import qualified Data.Set as Set
 import Data.Map (Map); import qualified Data.Map as Map
+import qualified Data.Vector
 import Data.List
 
 import Debug.Trace
 import Data.Text (pack)
-import Grin.Pretty (Pretty(..))
-import Grin.ExtendedSyntax.Pretty (PP(..))
+import Grin.Pretty (Pretty(..), PP(..))
 import Grin.TH
 import Grin.ExtendedSyntax.TypeEnv (TypeEnv, emptyTypeEnv)  -- NOTE: might become problematic later
 import Test.Hspec
@@ -345,6 +345,10 @@ data Type
 
 instance Arbitrary Type where arbitrary = genericArbitraryU
 instance Arbitrary Grin.SimpleType where arbitrary = genericArbitraryU
+
+instance Arbitrary a => Arbitrary (Data.Vector.Vector a) where
+  arbitrary = Data.Vector.fromList <$> arbitrary
+  shrink = fmap Data.Vector.fromList . shrink . Data.Vector.toList
 
 instance Arbitrary Grin.Type where
   arbitrary = oneof

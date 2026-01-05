@@ -16,11 +16,13 @@ import Data.Map as Map
 import Data.Monoid ((<>))
 import Control.Monad.Identity
 import Control.Monad.State
+import Control.Monad (void)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Data.Vector (Vector)
 import qualified Data.Vector as V
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), Pretty, pretty)
+import Grin.Pretty (Pretty(..))
 import Data.Maybe as Maybe
 import Data.List as List (foldl', nub)
 import Data.Bifunctor
@@ -626,7 +628,7 @@ instance Pretty TypeSet where
 instance Pretty FetchTo where
   pretty = \case
     FetchName n -> pretty n
-    FetchNode v t i -> pretty (v, t, i)
+    FetchNode v t i -> parens (pretty v <+> pretty t <+> pretty i)
     FetchFunc n -> pretty n
 
 instance Pretty Equation where
@@ -646,8 +648,8 @@ _T_Location _ rest           = pure rest
 
 -- * Test
 
-test1 = pretty $ heapPointsTo testExp1
-test2 = pretty $ heapPointsTo testExp2
+test1 = let (r, w) = heapPointsTo testExp1 in pretty r <$$> pretty w
+test2 = let (r, w) = heapPointsTo testExp2 in pretty r <$$> pretty w
 
 testExp1 :: Exp
 testExp1 = [prog|

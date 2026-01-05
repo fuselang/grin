@@ -3,7 +3,7 @@ module AbstractInterpretation.LiveVariable.Pretty where
 
 import Data.Tuple
 import Data.Functor.Foldable as Foldable
-import Text.PrettyPrint.ANSI.Leijen
+import Text.PrettyPrint.ANSI.Leijen hiding (Pretty, pretty)
 
 import Data.Map (Map)
 import qualified Data.Map as Map

@@ -33,6 +33,7 @@ import Grin.TypeEnvDefs hiding (location, nodeSet, simpleType)
 import qualified Grin.TypeEnvDefs as Env
 import Grin.Parse.Basic
 
+import Control.Monad (forM, forM_)
 import Control.Monad.State
 
 

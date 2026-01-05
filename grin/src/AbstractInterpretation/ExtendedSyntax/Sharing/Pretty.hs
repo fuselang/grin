@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase, RecordWildCards #-}
 module AbstractInterpretation.ExtendedSyntax.Sharing.Pretty where
 
-import Text.PrettyPrint.ANSI.Leijen
+import Text.PrettyPrint.ANSI.Leijen hiding (Pretty, pretty)
 
 import Data.Set (Set)
 import Data.Map (Map)

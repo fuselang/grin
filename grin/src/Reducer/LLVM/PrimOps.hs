@@ -86,7 +86,8 @@ mkFunction name ops_params_ty ret_ty = pure . I (tyToCGType ret_ty) $ Call
     { tailCallKind = Nothing
     , callingConvention = CC.C
     , returnAttributes = []
-    , function = Right $ ConstantOperand $ C.GlobalReference (fun (tyToLLVMType ret_ty) (tyToLLVMType <$> params_ty)) (mkName name)
+    , type' = functionType  -- LLVM 15: requires explicit function type
+    , function = Right $ ConstantOperand $ C.GlobalReference (mkName name)  -- LLVM 15: GlobalReference only takes name
     , arguments = ops `zip` repeat []
     , functionAttributes = []
     , metadata = []
@@ -99,5 +100,10 @@ mkFunction name ops_params_ty ret_ty = pure . I (tyToCGType ret_ty) $ Call
     tyToCGType t = case t of
         Grin.TySimple st -> toCGType (T_SimpleType st)
         _                -> error $ "Non simple type in: " ++ show (name, t)
-    fptr ty = PointerType { pointerReferent = ty, pointerAddrSpace = AddrSpace 0}
-    fun ret args = fptr FunctionType {resultType = ret, argumentTypes = args, isVarArg = False}
+    functionType = FunctionType
+        { resultType    = tyToLLVMType ret_ty
+        , argumentTypes = map tyToLLVMType params_ty
+        , isVarArg      = False
+        }
+    fptr _ = ptr  -- LLVM 15: opaque pointers, no typed pointers
+    fun ret args = ptr  -- LLVM 15: function pointers are also opaque

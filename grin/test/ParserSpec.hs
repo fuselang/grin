@@ -390,7 +390,7 @@ spec = do
                 }
             , External
                 { eName = "strcpy"
-                , eRetType = TySimple T_String
+                , eRetType = TySimple T_Unit
                 , eArgsType =
                     [ TySimple T_String
                     , TySimple T_String

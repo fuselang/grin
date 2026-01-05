@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase, RecordWildCards, Strict #-}
 module AbstractInterpretation.ExtendedSyntax.BinaryIR (encodeAbstractProgram) where
 
+import Control.Monad (foldM_, forM_)
 import Control.Monad.State
 import Data.Set (Set)
 import qualified Data.Set as Set

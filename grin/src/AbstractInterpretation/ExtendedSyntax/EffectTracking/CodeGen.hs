@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase, RecordWildCards, TupleSections, TemplateHaskell, OverloadedStrings #-}
 module AbstractInterpretation.ExtendedSyntax.EffectTracking.CodeGen where
 
+import Control.Monad (forM, forM_, when)
 import Control.Monad.State
 
 import Data.Set (Set)

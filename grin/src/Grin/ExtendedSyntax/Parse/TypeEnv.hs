@@ -20,7 +20,7 @@ import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
 
-import Control.Monad (void)
+import Control.Monad (void, forM, forM_)
 
 import Lens.Micro.Platform
 

@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase, RecordWildCards, OverloadedStrings #-}
+{-# LANGUAGE LambdaCase, RecordWildCards, OverloadedStrings, TypeSynonymInstances, FlexibleInstances #-}
 module Grin.Pretty
   ( pretty
   , printGrin
@@ -11,7 +11,8 @@ module Grin.Pretty
   , prettyBracedList
   , prettySimplePair
   , prettyFunction
-  , Pretty
+  , Pretty(..)
+  , Doc
   , showName
   , showWidth
   , showWide
@@ -34,13 +35,37 @@ import qualified Data.Vector as V
 import Data.Text (unpack)
 
 import Data.Functor.Foldable as Foldable
-import Text.PrettyPrint.ANSI.Leijen
+import Text.PrettyPrint.ANSI.Leijen hiding (Pretty, pretty)
+import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import Grin.Grin
 import Grin.TypeEnvDefs
 import Grin.EffectMap
 
 import Grin.Parse
+
+-- | Custom Pretty class specialized to the concrete Doc type.
+-- This is needed because ansi-wl-pprint 1.0.x (a compatibility shim for
+-- prettyprinter) changed the Pretty class signature from 'pretty :: a -> Doc'
+-- to 'pretty :: a -> Doc ann' with a polymorphic annotation type.
+class Pretty a where
+  pretty :: a -> Doc
+
+instance Pretty Char where
+  pretty = PP.pretty
+
+instance Pretty Int where
+  pretty = PP.pretty
+
+instance Pretty a => Pretty [a] where
+  pretty = list . map pretty
+
+instance Pretty Doc where
+  pretty = id
+
+instance Pretty a => Pretty (Maybe a) where
+  pretty Nothing  = empty
+  pretty (Just x) = pretty x
 
 showWidth :: Int -> Doc -> String
 showWidth w x = displayS (renderPretty 0.4 w x) ""

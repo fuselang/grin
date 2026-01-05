@@ -12,6 +12,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Vector as Vec
 
+import Control.Monad (forM, forM_, zipWithM, replicateM)
 import Control.Monad.State
 
 import Lens.Micro.Platform

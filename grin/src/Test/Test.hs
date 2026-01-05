@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric, LambdaCase, TypeApplications, StandaloneDeriving, RankNTypes #-}
 {-# LANGUAGE QuasiQuotes, ViewPatterns, OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-orphans #-}  -- Arbitrary (Vector a) instance
 module Test.Test where
 
 import Prelude hiding (GT)
@@ -30,7 +31,6 @@ import qualified Grin.TypeEnvDefs as Grin
 import qualified Grin.PrimOpsPrelude as PrimOps'
 -- import qualified Test.PrimOps as PrimOps
 import Test.QuickCheck
-import Test.QuickCheck.Instances.Vector
 import Generic.Random
 import Lens.Micro
 import Lens.Micro.Mtl
@@ -38,6 +38,7 @@ import qualified Test.Grammar as G
 
 import Data.Set (Set); import qualified Data.Set as Set
 import Data.Map (Map); import qualified Data.Map as Map
+import qualified Data.Vector
 import Data.List
 
 import Debug.Trace
@@ -347,6 +348,9 @@ data Type
 instance Arbitrary Type where arbitrary = genericArbitraryU
 instance Arbitrary Grin.SimpleType where arbitrary = genericArbitraryU
 instance Arbitrary Grin.Type where arbitrary = genericArbitraryU
+instance Arbitrary a => Arbitrary (Data.Vector.Vector a) where
+  arbitrary = Data.Vector.fromList <$> arbitrary
+  shrink = fmap Data.Vector.fromList . shrink . Data.Vector.toList
 
 simpleType :: GoalM Type
 simpleType = melements
