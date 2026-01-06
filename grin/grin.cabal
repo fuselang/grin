@@ -386,6 +386,7 @@ test-suite grin-test
                      ExtendedSyntax.NametableSpec
                      ExtendedSyntax.ParserSpec
                      Reducer.Interpreter.Definitional.CibSpec
+                     Reducer.LLVM.CodeGenSpec
                      Transformations.ExtendedSyntax.BindNormalisationSpec
                      Transformations.ExtendedSyntax.ConversionSpec
                      Transformations.ExtendedSyntax.MangleNamesSpec

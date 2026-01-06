@@ -8,6 +8,7 @@ module Pipeline.Pipeline
   , EffectStep(..)
   , Path(..)
   , RenderingOption(..)
+  , GCMode(..)  -- Re-export GCMode
   , pattern HPTPass
   , pattern PrintGrin
   , pattern SimplePrintGrin
@@ -83,6 +84,7 @@ import qualified AbstractInterpretation.EffectTracking.CodeGen       as ET
 import qualified AbstractInterpretation.EffectTracking.CodeGenBase   as ET
 import qualified AbstractInterpretation.Sharing.CodeGen              as Sharing
 import qualified Reducer.LLVM.CodeGen as CGLLVM
+import Reducer.LLVM.Base (GCMode(..))
 
 #ifdef WITH_LLVM_HS
 import qualified Reducer.LLVM.JIT as JITLLVM
@@ -276,6 +278,7 @@ data PipelineOpts = PipelineOpts
   , _poTypedLint :: Bool -- Run HPT before every lint
   , _poSaveBinary :: Bool
   , _poCFiles :: [FilePath]
+  , _poGCMode :: GCMode  -- Garbage collection mode for LLVM codegen
   }
 
 defaultOpts :: PipelineOpts
@@ -289,6 +292,7 @@ defaultOpts = PipelineOpts
   , _poTypedLint    = False
   , _poSaveBinary   = False
   , _poCFiles       = []
+  , _poGCMode       = GC_BumpAllocator  -- Default to bump allocator
   }
 
 type PipelineM a = ReaderT PipelineOpts (StateT PState IO) a
@@ -699,6 +703,8 @@ jitLLVM = do
   e <- use psExp
   Just typeEnv <- use psTypeEnv
 #ifdef WITH_LLVM_HS
+  -- JIT always uses bump allocator (GC_BumpAllocator) regardless of _poGCMode
+  -- because JIT execution is short-lived and doesn't need GC
   val <- liftIO $ JITLLVM.eagerJit (CGLLVM.codeGen typeEnv e) "grinMain"
   pipelineLog $ show $ pretty val
 #else
@@ -745,11 +751,13 @@ saveLLVM path = do
   e <- use psExp
   pipelineStep HPTPass
   Just typeEnv <- use psTypeEnv
+  gcMode <- view poGCMode
   fname <- relPath path
-  let code = CGLLVM.codeGen typeEnv e
+  let code = CGLLVM.codeGenWithGC gcMode typeEnv e
   let llName = printf "%s.ll" fname
   let sName = printf "%s.s" fname
   pipelineLog "* to LLVM *"
+  pipelineLog $ "* GC Mode: " ++ show gcMode ++ " *"
   void $ liftIO $ CGLLVM.toLLVM llName code
   pipelineLog"* LLVM X64 codegen *"
   llcExe <- liftIO $ fromMaybe "llc-15" <$> lookupEnv "GRIN_LLC"
@@ -770,10 +778,22 @@ saveExecutable debugSymbols path = do
     ("%s -O3 -relocation-model=pic -filetype=obj %s.ll" ++ if debugSymbols then " -debugger-tune=gdb" else "")
     llcExe grinOptCodeFile
   cfg <- ask
+  -- Build GC-specific flags
+  gcInclude <- liftIO $ fromMaybe "" <$> lookupEnv "GC_INCLUDE"
+  gcLib <- liftIO $ fromMaybe "" <$> lookupEnv "GC_LIB"
+  let gcFlags = case _poGCMode cfg of
+        GC_Boehm -> unwords
+          [ "-DUSE_BOEHM_GC"
+          , if null gcInclude then "" else "-I" ++ gcInclude
+          , if null gcLib then "" else "-L" ++ gcLib
+          , "-lgc"
+          ]
+        GC_BumpAllocator -> ""
+  pipelineLog $ "* GC Flags: " ++ (if null gcFlags then "(none)" else gcFlags) ++ " *"
   callCommand $ printf
     -- TODO: Support defining libraries for ffi and primops.
-    ("%s -lm -O3 %s %s.o -s -o %s" ++ if debugSymbols then " -g" else "")
-    clangExe (intercalate " " $ _poCFiles cfg) grinOptCodeFile fname
+    ("%s -lm -O3 %s %s %s.o -s -o %s" ++ if debugSymbols then " -g" else "")
+    clangExe gcFlags (intercalate " " $ _poCFiles cfg) grinOptCodeFile fname
 
 debugTransformation :: (Exp -> Exp) -> PipelineM ()
 debugTransformation t = do

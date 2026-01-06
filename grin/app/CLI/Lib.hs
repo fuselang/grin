@@ -20,6 +20,7 @@ import Grin.PrimOpsPrelude
 import Grin.Parse
 import Grin.Nametable as Nametable
 import Pipeline.Pipeline
+import Reducer.LLVM.Base (GCMode(..))
 
 
 
@@ -33,6 +34,7 @@ data Options = Options
   , optSaveBinary :: Bool
   , optCFiles     :: [FilePath]
   , optDontFailOnLint :: Bool
+  , optGCMode    :: GCMode
   } deriving Show
 
 flg c l h = flag' c (mconcat [long l, help h])
@@ -202,6 +204,18 @@ options args = do
             [ long "continue-on-failed-lint"
             , help "Do not fail on lint errors"
             ])
+      <*> option parseGCMode (mconcat
+            [ long "gc"
+            , help "Garbage collection mode: bump (default) or boehm"
+            , value GC_BumpAllocator
+            , metavar "MODE"
+            ])
+
+parseGCMode :: ReadM GCMode
+parseGCMode = eitherReader $ \s -> case map toLower s of
+  "bump"  -> Right GC_BumpAllocator
+  "boehm" -> Right GC_Boehm
+  _       -> Left $ "Unknown GC mode: " ++ s ++ " (use 'bump' or 'boehm')"
 
 mainWithArgs :: [String] -> IO ()
 mainWithArgs args = do
@@ -216,6 +230,7 @@ mainWithArgs args = do
     saveBinary
     cFiles
     continueOnLint
+    gcMode
     <- options args
   forM_ files $ \fname -> do
     (mTypeEnv, program) <- if loadBinary
@@ -231,6 +246,7 @@ mainWithArgs args = do
                 , _poLogging = not quiet
                 , _poSaveBinary = saveBinary
                 , _poCFiles = cFiles
+                , _poGCMode = gcMode
                 }
     case steps of
       [] -> void $ optimize opts program [] postPipeline

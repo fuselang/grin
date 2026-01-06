@@ -2,6 +2,7 @@
 
 module Reducer.LLVM.CodeGen
   ( codeGen
+  , codeGenWithGC
   , toLLVM
   ) where
 
@@ -179,9 +180,14 @@ getCPatName = \case
 toModule :: Env -> AST.Module
 toModule Env{..} = defaultModule
   { moduleName = "basic"
-  , moduleDefinitions = heapPointerDef : (stringDefinitions) ++ (reverse _envDefinitions)
+  , moduleDefinitions = heapPointerDefs ++ stringDefinitions ++ reverse _envDefinitions
   }
   where
+    -- Only include heap pointer for bump allocator mode
+    heapPointerDefs = case _envGCMode of
+      GC_BumpAllocator -> [heapPointerDef]
+      GC_Boehm         -> []
+
     heapPointerDef = GlobalDefinition globalVariableDefaults
       { name          = mkName (heapPointerName)
       , Global.type'  = i64
@@ -222,8 +228,14 @@ toModule Env{..} = defaultModule
     ?? - SFetchI     Name (Maybe Int) -- fetch a full node or a single node item in low level GRIN
     ok - SUpdate     Name Val
 -}
+
+-- | Generate LLVM code with default GC mode (bump allocator)
 codeGen :: TypeEnv -> Exp -> AST.Module
-codeGen typeEnv exp = toModule $ flip execState (emptyEnv {_envTypeEnv = typeEnv}) $ para folder exp where
+codeGen = codeGenWithGC GC_BumpAllocator
+
+-- | Generate LLVM code with specified GC mode
+codeGenWithGC :: GCMode -> TypeEnv -> Exp -> AST.Module
+codeGenWithGC gcMode typeEnv exp = toModule $ flip execState (emptyEnv {_envTypeEnv = typeEnv, _envGCMode = gcMode}) $ para folder exp where
   folder :: ExpF (Exp, CG Result) -> CG Result
   folder = \case
     SReturnF val -> do
@@ -353,6 +365,9 @@ codeGen typeEnv exp = toModule $ flip execState (emptyEnv {_envTypeEnv = typeEnv
     ProgramF exts defs -> do
       -- register prim fun lib
       runtimeErrorExternal
+      -- Register GC_malloc external when using Boehm GC
+      gcMode <- gets _envGCMode
+      when (gcMode == GC_Boehm) gcMallocExternal
       mapM registerPrimFunLib exts
       sequence_ (map snd defs) >> pure (O unitCGType unit)
 
@@ -548,8 +563,17 @@ codeGenTagSwitch tagVal nodeSet tagAltGen = error $ "LLVM codegen: empty node se
 
 -- heap pointer related functions
 
-codeGenIncreaseHeapPointer :: CGType -> CG Operand -- TODO
+-- | Allocate memory for a node, dispatching based on GC mode
+codeGenIncreaseHeapPointer :: CGType -> CG Operand
 codeGenIncreaseHeapPointer varT = do
+  gcMode <- gets _envGCMode
+  case gcMode of
+    GC_BumpAllocator -> codeGenBumpAlloc varT
+    GC_Boehm         -> codeGenGCMalloc varT
+
+-- | Bump allocator: increment heap pointer atomically and return old value
+codeGenBumpAlloc :: CGType -> CG Operand
+codeGenBumpAlloc varT = do
   -- increase heap pointer and return the old value which points to the first free block
   nodeSet <- case varT of
     CG_SimpleType {cgType = T_SimpleType (T_Location locs)} -> mconcat <$> mapM (\loc -> use $ envTypeEnv.location.ix loc) locs
@@ -584,6 +608,46 @@ codeGenIncreaseHeapPointer varT = do
     , metadata  = []
     }
 
+-- | Boehm GC allocator: call GC_malloc to allocate memory
+codeGenGCMalloc :: CGType -> CG Operand
+codeGenGCMalloc varT = do
+  -- Calculate the allocation size (same as bump allocator)
+  nodeSet <- case varT of
+    CG_SimpleType {cgType = T_SimpleType (T_Location locs)} -> mconcat <$> mapM (\loc -> use $ envTypeEnv.location.ix loc) locs
+    CG_NodeSet {cgType = T_NodeSet ns} -> pure ns
+    _ -> error $ show varT
+
+  let structTy = tuLLVMType $ taggedUnion nodeSet  -- LLVM 15: GEP needs explicit element type
+  tuSizePtr <- codeGenLocalVar "alloc_bytes" ptr $ AST.GetElementPtr
+    { inBounds  = True
+    , type'     = structTy  -- LLVM 15: opaque pointers require explicit type
+    , address   = ConstantOperand $ Null { constantType = ptr }
+    , indices   = [ConstantOperand $ C.Int 32 1]
+    , metadata  = []
+    }
+  tuSizeInt <- codeGenLocalVar "alloc_bytes" i64 $ AST.PtrToInt
+    { operand0  = tuSizePtr
+    , type'     = i64
+    , metadata  = []
+    }
+
+  -- Call GC_malloc instead of atomic heap pointer increment
+  let gcMallocType = FunctionType
+        { resultType    = ptr
+        , argumentTypes = [i64]
+        , isVarArg      = False
+        }
+  codeGenLocalVar "gc_ptr" ptr $ AST.Call
+    { tailCallKind        = Nothing
+    , callingConvention   = CC.C
+    , returnAttributes    = []
+    , type'               = gcMallocType  -- LLVM 15: requires explicit function type
+    , function            = Right . ConstantOperand $ GlobalReference (mkName "GC_malloc")
+    , arguments           = [(tuSizeInt, [])]
+    , functionAttributes  = []
+    , metadata            = []
+    }
+
 external :: Type -> AST.Name -> [(Type, AST.Name)] -> CG ()
 external retty label argtys = modify' (\env@Env{..} -> env {_envDefinitions = def : _envDefinitions}) where
   def = GlobalDefinition $ functionDefaults
@@ -612,6 +676,11 @@ runtimeErrorExternal =
     (typeGenSimpleType T_Unit)
     (mkName "__runtime_error")
     [(typeGenSimpleType T_Int64, mkName "x0")]
+
+-- | Declare GC_malloc external for Boehm GC
+gcMallocExternal :: CG ()
+gcMallocExternal =
+  external ptr (mkName "GC_malloc") [(i64, mkName "size")]
 
 errorBlock :: CG ()
 errorBlock = do

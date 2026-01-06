@@ -30,6 +30,12 @@ import LLVM.AST.Global
 import Control.Monad.Except
 import qualified Data.ByteString.Char8 as BS
 
+-- | Garbage collection mode for code generation
+data GCMode
+  = GC_BumpAllocator  -- ^ Current behavior: bump pointer allocation (default)
+  | GC_Boehm          -- ^ Boehm conservative garbage collector
+  deriving (Eq, Show)
+
 heapPointerName :: String
 heapPointerName = "_heap_ptr_"
 
@@ -56,6 +62,7 @@ data Env
   , _envTagMap            :: Map Tag Constant
   , _envStringMap         :: Map Text AST.Name -- Grin String Literal -> AST.Name
   , _envStringCounter     :: Int
+  , _envGCMode            :: GCMode                           -- Garbage collection mode
   }
 
 emptyEnv = Env
@@ -71,7 +78,12 @@ emptyEnv = Env
   , _envTagMap            = mempty
   , _envStringMap         = mempty
   , _envStringCounter     = 0
+  , _envGCMode            = GC_BumpAllocator  -- Default to bump allocator
   }
+
+-- | Create an environment with a specific GC mode
+mkEnvWithGCMode :: GCMode -> Env
+mkEnvWithGCMode gcMode = emptyEnv { _envGCMode = gcMode }
 
 concat <$> mapM makeLenses [''Env]
 

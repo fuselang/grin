@@ -20,11 +20,18 @@ in
       zlib
       ncurses
       libxml2
+
+      # Boehm GC for optional garbage collection
+      boehmgc
     ];
 
     shellHook = ''
       export GRIN_CC="${nixpkgs.clang_15}/bin/clang"
       export GRIN_OPT="${nixpkgs.llvm_15}/bin/opt"
       export GRIN_LLC="${nixpkgs.llvm_15}/bin/llc"
+
+      # Boehm GC paths
+      export GC_INCLUDE="${nixpkgs.boehmgc}/include"
+      export GC_LIB="${nixpkgs.boehmgc}/lib"
     '';
   }

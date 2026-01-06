@@ -85,11 +85,17 @@
             haskell-language-server = "latest";
           };
 
+          # Additional build inputs for development
+          buildInputs = [ pkgs.boehmgc ];
+
           # Environment variables must be set via shellHook
           shellHook = ''
             export GRIN_CC="${pkgs.clang_15}/bin/clang"
             export GRIN_OPT="${pkgs.llvm_15}/bin/opt"
             export GRIN_LLC="${pkgs.llvm_15}/bin/llc"
+            # Boehm GC paths for --gc=boehm support
+            export GC_INCLUDE="${pkgs.boehmgc.dev}/include"
+            export GC_LIB="${pkgs.boehmgc.out}/lib"
           '';
         };
       };
